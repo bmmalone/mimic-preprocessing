@@ -13,6 +13,7 @@ def _safe_read_lines(f):
     return r
 
 console_scripts = [
+    'create-extended-mimic-dataset=mimic_preprocessing.create_extended_mimic_dataset:main',
 ]
 
 install_requires = _safe_read_lines("./requirements.txt")
