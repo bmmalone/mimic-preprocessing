@@ -52,7 +52,6 @@ classifiers = [
     'License :: OSI Approved :: BSD License',
     'Natural Language :: English',
     'Programming Language :: Python :: 3 :: Only',
-    'Topic :: Scientific/Engineering :: Artificial Intelligence',
 ]
 
 def _post_install(self):
@@ -83,17 +82,17 @@ def readme():
         return f.read()
 
 def description():
-    description = ("This package includes thin wrappers around various "
-        "immunogenicity scoring approaches.")
+    description = ("This package includes helper scripts to add additional "
+        "data modalities to the MIMIC-III dataset.")
     return description
 
 setup(
-    name='immunogenicity_scorers',
+    name='mimic_preprocessing',
     version='0.1.0',
     description=description(),
     long_description=readme(),
-    keywords="peptide epitope immunogenicity mhc hla ",
-    url="https://repos.ant-net/bmalone/immunogenicity-scorers",
+    keywords="electronic health records mimic-iii preprocessing",
+    url="https://github.com/bmmalone/mimic-preprocessing",
     author="NLE",
     author_email="brandon.malone@neclab.eu",
     license='BSD 3-clause "New" or "Revised License"',
