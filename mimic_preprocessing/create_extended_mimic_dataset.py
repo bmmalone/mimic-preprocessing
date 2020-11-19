@@ -133,7 +133,10 @@ def main():
         df_admissions[ADMISSIONS_COLS], on='HADM_ID'
     )
 
-    msg = "Loading the \"episode\" information"
+    msg = ("Loading the \"episode\" information. N.B. This is not efficient. "
+        "The expected time is around an hour if a single processor is used. "
+        "Please see the --num-procs and --cluster-location command line "
+        "options for using more processors or a dask cluster.")
     logger.info(msg)
     episode_path = pathlib.Path(config['mimic_basepath'])
     episode_path = episode_path / "benchmarks" / "train" / "12741" / "episode1.csv"
