@@ -8,6 +8,7 @@ logger = logging.getLogger(__name__)
 
 import argparse
 import more_itertools
+import numpy as np
 import pandas as pd
 import pathlib
 import tqdm
@@ -15,6 +16,7 @@ import tqdm
 import pyllars.collection_utils as collection_utils
 import pyllars.dask_utils as dask_utils
 import pyllars.physionet_utils as physionet_utils
+import pyllars.shell_utils as shell_utils
 import pyllars.utils
 
 ADMISSIONS_COLS = [
@@ -112,6 +114,10 @@ def load_and_clean_episodes(episodes, DIAGNOSES_TO_REPLACE, EPISODE_COLS, progre
 def main():
     args = parse_arguments()
     config = pyllars.utils.load_config(args.config)
+    
+    msg = "Connecting to dask client"
+    logger.info(msg)
+    dask_client, dask_cluster = dask_utils.connect(args)
 
     msg = "Reading the \"stays\" information"
     logger.info(msg)
@@ -124,15 +130,15 @@ def main():
     msg = "Merging stays and admissions"
     logger.info(msg)
     df_extended_data = df_stays.merge(
-        df_admissions[admissions_cols], on='HADM_ID'
+        df_admissions[ADMISSIONS_COLS], on='HADM_ID'
     )
 
     msg = "Loading the \"episode\" information"
     logger.info(msg)
     episode_path = pathlib.Path(config['mimic_basepath'])
-    episode_path /= "benchmarks" / "train" / "12741" / "episode1.csv"
+    episode_path = episode_path / "benchmarks" / "train" / "12741" / "episode1.csv"
         
-    DIAGNOSES_TO_REPLACE = get_diagnosis_to_replace()
+    DIAGNOSES_TO_REPLACE = get_diagnosis_to_replace(episode_path)
 
     EPISODE_COLS = (
         list(EPISODE_RENAME_COLS.values()) + 
@@ -140,7 +146,7 @@ def main():
         ['EPISODE']
     )
 
-    with open(config['all_episodes']) as in_f:
+    with open(config['all_episodes_list']) as in_f:
         all_episode_files = [l.strip() for l in in_f.readlines()]
 
     it = more_itertools.chunked(all_episode_files, args.chunk_size)
@@ -150,7 +156,8 @@ def main():
         dask_client,
         load_and_clean_episodes,
         DIAGNOSES_TO_REPLACE,
-        EPISODE_COLS
+        EPISODE_COLS,
+        progress_bar=True
     )
 
     msg = "Joining the \"episode\" information"
@@ -178,6 +185,8 @@ def main():
     df_extended_episodes['EPISODE_NAME'] = episode_names
 
     msg = "Writing extended data frame to: '{}'".format(config['all_episodes'])
+    logger.info(msg)
+    shell_utils.ensure_path_to_file_exists(config['all_episodes'])
     df_extended_data.to_csv(config['all_episodes'], index=False)
 
 if __name__ == '__main__':

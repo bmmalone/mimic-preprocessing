@@ -7,6 +7,9 @@ test_data
 # scratch notebooks
 scratch*ipynb
 
+# dask
+dask-worker-space
+
 # vscode
 .vscode
 

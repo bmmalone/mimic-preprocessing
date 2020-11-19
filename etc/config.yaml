@@ -1,0 +1,5 @@
+mimic_basepath: /biodb/physionet/mimic-iii/
+all_episodes_list: /biodb/physionet/mimic-iii/benchmarks/all-episodes_listfile.txt
+all_stays: /biodb/physionet/mimic-iii/benchmarks/all_stays.csv
+all_episodes: /prj/mimic-preprocessing/analysis/all_episodes.csv
+
