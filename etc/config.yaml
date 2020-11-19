@@ -1,9 +1,18 @@
+# path the MIMIC-III csv data tables
 mimic_basepath: /biodb/physionet/mimic-iii/
+
+# created by code from Harutyunyan et al.
+benchmark_base: /biodb/physionet/mimic-iii/benchmarks
 all_episodes_list: /biodb/physionet/mimic-iii/benchmarks/all-episodes_listfile.txt
 all_stays: /biodb/physionet/mimic-iii/benchmarks/all_stays.csv
+
+# files created by pipeline
 all_episodes: /prj/mimic-preprocessing/analysis/all_episodes.csv
 episode_notes: /prj/mimic-preprocessing/analysis/episode-notes.jpkl
 
 # document frequencies for stop words. See CountVectorizer for details.
 min_df: 0.001
 max_df: 0.9
+
+# do not change these
+benchmark_problem: in-hospital-mortality
