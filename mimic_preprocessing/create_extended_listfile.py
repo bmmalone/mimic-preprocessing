@@ -12,6 +12,8 @@ import pyllars.dask_utils as dask_utils
 import pyllars.pandas_utils as pd_utils
 import pyllars.utils
 
+import mimic_preprocessing.mp_filenames as mp_filenames
+
 # This work is entirely based on predictions at 48 hours. Thus, the in-hospital
 # mortality problem should always be used for building the dataset.
 BENCHMARK_PROBLEM = "in-hospital-mortality"
@@ -62,7 +64,7 @@ def get_benchmark_listfile(benchmark_base, benchmark_split):
     return f
 
 def build_listfile(benchmark_base, benchmark_split):
-    listfile = get_benchmark_listfile(benchmark_base, benchmark_benchmark_split)
+    listfile = get_benchmark_listfile(benchmark_base, benchmark_split)
     msg = "Loading listfile: '{}'".format(listfile)
     logger.info(msg)
 
