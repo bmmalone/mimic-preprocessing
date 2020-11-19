@@ -13,6 +13,7 @@ def _safe_read_lines(f):
     return r
 
 console_scripts = [
+    'create-extended-listfile=mimic_preprocessing.create_extended_listfile:main',
     'create-extended-mimic-dataset=mimic_preprocessing.create_extended_mimic_dataset:main',
     'create-mimic-notes-bow=mimic_preprocessing.create_mimic_notes_bow:main',
 ]
