@@ -150,7 +150,7 @@ def clean_row(row, config):
     row_id = int(row['ROW_ID'])
 
     f = mp_filenames.get_note_event_filename(
-        config['mimic_basepath'],
+        config['analysis_basepath'],
         subject_id,
         hadm_id,
         row_id,
@@ -232,7 +232,7 @@ def create_count_vectorizer(df_notes, args, config, client):
 
     # and write to disk
     f = mp_filenames.get_mimic_notes_count_vectorizer_filename(
-        config['mimic_basepath']
+        config['analysis_basepath']
     )
 
     joblib.dump(icv_fit, f)
@@ -268,7 +268,7 @@ def create_bow(df_notes, args, config, client):
     g_notes = pd_utils.split_df(df_notes, num_groups)
 
     f = mp_filenames.get_mimic_notes_count_vectorizer_filename(
-        config['mimic_basepath']
+        config['analysis_basepath']
     )
 
     icv_fit_load = joblib.load(f)
@@ -300,7 +300,7 @@ def process_group(g, config):
     df_cleaned_notes['CHARTTIME'] = pd.to_datetime(df_cleaned_notes['CHARTTIME'])
     
     out_f = mp_filenames.get_note_event_filename(
-        config['mimic_basepath'],
+        config['analysis_basepath'],
         subject_id,
         hadm_id,
         note=NOTE_CLEANED_BOW_COMBINED
@@ -374,7 +374,7 @@ def get_final_record(
         
     # extend the lists with the observed notes
     note_events = mp_filenames.get_note_event_filename(
-        config['mimic_basepath'],
+        config['analysis_basepath'],
         subject_id,
         hadm_id,
         note=NOTE_CLEANED_BOW_COMBINED
@@ -471,7 +471,7 @@ def main():
 
     msg = "Loading the list file"
     logger.info(msg)
-    df_listfile = pd.read_csv(config['episode_listfile'])
+    df_listfile = pd.read_csv(config['complete_listfile'])
 
     msg = "Cleaning notes"
     logger.info(msg)

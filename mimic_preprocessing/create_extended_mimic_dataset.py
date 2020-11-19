@@ -149,8 +149,8 @@ def main():
         ['EPISODE']
     )
 
-    with open(config['all_episodes_list']) as in_f:
-        all_episode_files = [l.strip() for l in in_f.readlines()]
+    df_list = pd.read_csv(config['complete_listfile'])
+    all_episode_files = df_list['EPISODE_FILE'].values.tolist()
 
     it = more_itertools.chunked(all_episode_files, args.chunk_size)
 

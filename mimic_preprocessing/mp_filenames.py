@@ -418,7 +418,7 @@ def get_note_event_filename_row(row, config, note):
     row_id = int(row['ROW_ID'])
 
     f = get_note_event_filename(
-        config['mimic_basepath'],
+        config['analysis_basepath'],
         subject_id,
         hadm_id,
         row_id,

@@ -3,16 +3,14 @@ mimic_basepath: /biodb/physionet/mimic-iii/
 
 # created by code from Harutyunyan et al.
 benchmark_base: /biodb/physionet/mimic-iii/benchmarks
-all_episodes_list: /biodb/physionet/mimic-iii/benchmarks/all-episodes_listfile.txt
 all_stays: /biodb/physionet/mimic-iii/benchmarks/all_stays.csv
 
 # files created by pipeline
+analysis_basepath: /prj/mimic-preprocessing/analysis
+
 complete_listfile: /prj/mimic-preprocessing/analysis/listfile.csv
 all_episodes: /prj/mimic-preprocessing/analysis/all_episodes.csv
 complete_episodes: /prj/mimic-preprocessing/analysis/all-episodes.complete-dataset.jpkl
-
-#TODO: HOW TO HANDLE?
-episode_listfile: ASDFASDF
 
 # TODO: NEEDED?
 episode_notes: /prj/mimic-preprocessing/analysis/episode-notes.jpkl
