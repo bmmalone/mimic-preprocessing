@@ -14,6 +14,7 @@ def _safe_read_lines(f):
 
 console_scripts = [
     'create-extended-mimic-dataset=mimic_preprocessing.create_extended_mimic_dataset:main',
+    'create-mimic-notes-bow=mimic_preprocessing.create_mimic_notes_bow:main',
 ]
 
 install_requires = _safe_read_lines("./requirements.txt")
