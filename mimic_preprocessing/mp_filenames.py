@@ -46,10 +46,91 @@ def _get_wide_str(wide=False):
         wide_str = ".wide"
     return wide_str
 
+###
+# Harutyunyan et al., benchmarks
+###
+
+VALID_BENCHMARK_SPLITS = set(["train", "test"])
+VALID_BENCHMARK_PROBLEMS = set([
+    "decompensation",
+    "in-hospital-mortality",
+    "length-of-stay",
+    "multitask",
+    "phenotyping"
+])
+
+def _validate_benchmark_problem(benchmark_problem, function_name=None):
+    
+    if benchmark_problem not in VALID_BENCHMARK_PROBLEMS:
+        
+        #https://stackoverflow.com/questions/5067604
+        if function_name is None:
+            function_name = sys._getframe(1).f_code.co_name
+            
+        msg = ("[{}] invalid problem name: {}. valid "
+            "names are: {}".format(function_name, benchmark_problem, 
+            VALID_BENCHMARK_PROBLEMS))
+        raise ValueError(msg)
+
+def _validate_split(split, function_name=None):
+    
+    if split not in VALID_BENCHMARK_SPLITS:
+        
+        #https://stackoverflow.com/questions/5067604
+        if function_name is None:
+            function_name = sys._getframe(1).f_code.co_name
+            
+        msg = ("[{}] invalid split name: {}. valid names are: {}".format(
+            function_name, split, VALID_BENCHMARK_SPLITS))
+        raise ValueError(msg)
+
 
 ###
 # The actual filenames now
 ###
+def get_benchmark_episodes_filename(benchmark_base, split,
+        subject_id, filetype="csv.gz", note=None):
+    """ Get the complete path to the file containing all demographic and
+    admission information for the benchmark episodes for the subject
+
+    Parameters
+    ----------
+    benchmark_base: path-like (e.g., a string)
+        The path to the base data directory for the benchmark task
+
+    split: string
+        The split. Please see `VALID_BENCHMARK_SPLITS` for
+        a list of all valid splits
+
+    subject_id: string
+        The identifier for the subject
+
+    filetype: string
+        The extension to use for the file. Reasonable values are "parq" and
+        "csv.gz"
+
+    note: string or None
+        Any additional note to include in the filename. This should probably
+        not contain spaces or special characters.
+
+    Returns
+    -------
+    episode_filename: string
+        The path to the episode file
+    """
+    _validate_split(split)
+
+    fname = [
+        "episodes-updated",
+        _get_note_str(note),
+        ".",
+        filetype
+    ]
+
+    fname = ''.join(fname)
+    fname = os.path.join(benchmark_base, split, str(subject_id), fname)
+    return fname
+
 def get_benchmark_record_filename(benchmark_base, benchmark_problem, split,
         subject_id, episode_id, compression_type="gz", note=None):
     """ Get the complete path for the file containing all features for the
@@ -89,6 +170,9 @@ def get_benchmark_record_filename(benchmark_base, benchmark_problem, split,
     record_file: string
         The path to the record file
     """
+    _validate_benchmark_problem(benchmark_problem)
+    _validate_split(split)
+
     f = [
         str(subject_id),
         "_",
@@ -108,6 +192,172 @@ def get_benchmark_record_filename(benchmark_base, benchmark_problem, split,
         f
     ]
 
+    f = os.path.join(*f)
+    return f
+def get_benchmark_single_episode_filename(benchmark_base, split, subject_id,
+        episode_id, filetype="csv", note=None):
+    """ Get the complete path to the file containing all demographic and
+    admission information for the benchmark episodes for the subject
+
+    Parameters
+    ----------
+    benchmark_base: path-like (e.g., a string)
+        The path to the base data directory for the benchmark task
+
+    split: string
+        The split. Please see `VALID_BENCHMARK_SPLITS` for
+        a list of all valid splits
+
+    subject_id: string
+        The identifier for the subject
+
+    episode_id: string
+        The identifier for the episode (e.g., "episode1")
+
+    filetype: string
+        The extension to use for the file. Reasonable values are "parq" and
+        "csv.gz"
+
+    note: string or None
+        Any additional note to include in the filename. This should probably
+        not contain spaces or special characters.
+
+    Returns
+    -------
+    episode_filename: string
+        The path to the episode file
+    """
+    _validate_split(split)
+
+    fname = [
+        str(episode_id),
+        _get_note_str(note),
+        ".",
+        filetype
+    ]
+
+    fname = ''.join(fname)
+    fname = os.path.join(benchmark_base, split, str(subject_id), fname)
+    return fname
+
+def get_benchmark_stays_filename(benchmark_base, split, subject_id,
+        filetype="csv.gz", note=None, updated=True):
+    """ Get the complete path to the file containing all demographic and
+    admission information for the benchmark episodes for the subject
+
+    Parameters
+    ----------
+    benchmark_base: path-like (e.g., a string)
+        The path to the base benchmark data directory
+
+    split: string
+        The split. Please see `VALID_BENCHMARK_SPLITS` for
+        a list of all valid splits
+
+    subject_id: string
+        The identifier for the subject
+
+    filetype: string
+        The extension to use for the file. Reasonable values are "parq" and
+        "csv.gz"
+
+    note: string or None
+        Any additional note to include in the filename. This should probably
+        not contain spaces or special characters.
+        
+    updated: bool
+        Whether this is the 
+
+    Returns
+    -------
+    episode_filename: string
+        The path to the stays file
+    """
+    _validate_split(split)
+    
+    if updated:
+        fname = "stays-updated"
+    else:
+        fname = "stays"
+
+    fname = [
+        fname,
+        _get_note_str(note),
+        ".",
+        filetype
+    ]
+
+    fname = ''.join(fname)
+    fname = [
+        benchmark_base,
+        split,
+        str(subject_id),
+        fname
+    ]
+
+    fname = os.path.join(*fname)
+    return fname
+
+def get_benchmark_ts_filename(benchmark_base, benchmark_problem, split,
+        subject_id, episode_id, compression_type="gz", note=None):
+    """ Get the path to a file containing the time series features for the
+    indicated subject and episode
+
+    Parameters
+    ----------
+    benchmark_base: path-like (e.g., a string)
+        The path to the base data directory for the benchmark task
+
+    benchmark_problem: string
+        The problem of interest. Please see `VALID_BENCHMARK_PROBLEMS` for
+        a list of all valid problems.
+
+    split: string
+        The split. Please see `VALID_BENCHMARK_SPLITS` for
+        a list of all valid splits
+
+    subject_id: string
+        The identifier for the subject
+
+    episode_id: string
+        The identifier for the episode (e.g., "episode1")
+
+    compression_type: string
+        The extension for the type of compression. Please see the joblib docs
+        for more details about supported compression types and extensions.
+
+        Use None for no compression.
+
+    note: string or None
+        Any additional note to include in the filename. This should probably
+        not contain spaces or special characters.
+
+    Returns
+    -------
+    result_filename: string
+        The path to the result file
+    """
+    _validate_benchmark_problem(benchmark_problem)
+    _validate_split(split)
+
+    f = [
+        str(subject_id),
+        "_",
+        str(episode_id),
+        "_timeseries",
+        _get_note_str(note),
+        ".jpkl",
+        _get_compression_str(compression_type)
+    ]
+    
+    f = ''.join(f)
+    f = [
+        benchmark_base,
+        benchmark_problem,
+        split,
+        "ts-features",
+        f
+    ]
     f = os.path.join(*f)
     return f
 
