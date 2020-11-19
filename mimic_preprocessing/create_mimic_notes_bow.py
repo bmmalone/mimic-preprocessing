@@ -42,10 +42,9 @@ import pyllars.pandas_utils as pd_utils
 import pyllars.physionet_utils as physionet_utils
 import pyllars.shell_utils as shell_utils
 
-#TODO
-IncrementalCountVectorizer
+from pyllars.sklearn_transformers.incremental_count_vectorizer import IncrementalCountVectorizer
 
-FIELDS_TO_KEEP, NOTE_TYPES, NOTE_TYPE_MAPPINGS
+import mimic_preprocessing.mp_filenames as mp_filenames
 
 # we only need the identifiers, not the actual text, since we will load that
 COUNT_VECTORIZER_COLS = [
@@ -61,9 +60,76 @@ COUNT_VECTORIZER_COLS = [
     "ISERROR"
 ]
 
+# the fields we will keep around
+
+# those related to the admission
+ADMISSION_FIELDS = [
+    "ADMISSION_TYPE",
+    "ADMISSION_LOCATION",
+    "DIAGNOSIS",
+]
+
+# and demographics
+DEMOGRAPHIC_FIELDS = [
+    "ETHNICITY",
+    "GENDER",
+    "AGE",
+    "INSURANCE",
+    "MARITAL_STATUS"
+]
+
+# and keep around bookkeeping info
+BOOKKEEPING_FIELDS = [
+    "EPISODE",
+    "SUBJECT_ID",
+    "HADM_ID",
+    "ICUSTAY_ID"
+]
+
+# and the various targets we may want
+TARGET_FIELDS = [
+    "DISCHARGE_LOCATION",
+    "LOS",
+    "MORTALITY_INHOSPITAL"
+]
+
+FIELDS_TO_KEEP = BOOKKEEPING_FIELDS + DEMOGRAPHIC_FIELDS + ADMISSION_FIELDS + TARGET_FIELDS
+
+
+NOTE_TYPES = [
+    "NOTE_NURSING_BOW",
+    "NOTE_RADIOLOGY_BOW",
+    "NOTE_RESPITORY_BOW",
+    "NOTE_ECG_BOW",
+    "NOTE_ECHO_BOW",
+    "NOTE_OTHER_BOW",
+    "NOTE_DISCHARGE_SUMMARY_BOW"
+]
+
+NOTE_TYPE_MAPPINGS = {
+    "Case Management": "NOTE_OTHER_BOW",
+    "Consult": "NOTE_OTHER_BOW",
+    "Discharge summary": "NOTE_DISCHARGE_SUMMARY_BOW",
+    "ECG": "NOTE_ECG_BOW",
+    "Echo": "NOTE_ECHO_BOW",
+    "General": "NOTE_NURSING_BOW",
+    "Nursing": "NOTE_NURSING_BOW",
+    "Nursing/other": "NOTE_NURSING_BOW",
+    "Nutrition": "NOTE_OTHER_BOW",
+    "Pharmacy": "NOTE_OTHER_BOW",
+    "Physician": "NOTE_NURSING_BOW",
+    "Radiology": "NOTE_RADIOLOGY_BOW",
+    "Rehab Services": "NOTE_OTHER_BOW",
+    "Respiratory": "NOTE_RESPITORY_BOW",
+    "Social Work": "NOTE_OTHER_BOW"
+}
+
 ZERO_DAYS = pd.Timedelta(0, 'D')
 TWO_DAYS = pd.Timedelta(2, 'D')
 
+NOTE_CLEANED = "cleaned"
+NOTE_CLEANED_BOW = "cleaned-bow"
+NOTE_CLEANED_BOW_COMBINED = "cleaned-bow.combined"
 
 ###
 # Cleaning up the notes
@@ -82,15 +148,13 @@ def clean_row(row, config):
     subject_id = row['SUBJECT_ID']
     hadm_id = int(row['HADM_ID'])
     row_id = int(row['ROW_ID'])
-    note = "cleaned"
 
-    # TODO
-    f = filenames.get_note_event_filename(
+    f = mp_filenames.get_note_event_filename(
         config['mimic_basepath'],
         subject_id,
         hadm_id,
         row_id,
-        note=note
+        note=NOTE_CLEANED
     )
     
     joblib.dump(row, f)
@@ -125,31 +189,13 @@ def get_tokens(file):
     tokens = tokens.split(' ')
     return tokens
 
-def get_filename(row, config, note):
-    
-    # only keep notes associated of admissions
-    if pd.isnull(row['HADM_ID']):
-        return None
-    
-    subject_id = int(row['SUBJECT_ID'])
-    hadm_id = int(row['HADM_ID'])
-    row_id = int(row['ROW_ID'])
-
-    #TODO
-    f = filenames.get_note_event_filename(
-        config['mimic_basepath'],
-        subject_id,
-        hadm_id,
-        row_id,
-        note=note
-    )
-    
-    return f
-
 def process_chunk_count_vectorizer(df, config):
     
-    note="cleaned"
-    filenames = df.apply(get_filename, axis=1, args=(config,note))
+    filenames = df.apply(
+        mp_filenames.get_note_event_filename_row,
+        axis=1,
+        args=(config,NOTE_CLEANED)
+    )
     filenames = list(filenames)
     filenames = collection_utils.remove_nones(filenames)
     
@@ -184,9 +230,8 @@ def create_count_vectorizer(df_notes, args, config, client):
         get_tokens=get_tokens
     )
 
-    # TODO
     # and write to disk
-    f = filenames.get_mimic_notes_count_vectorizer_filename(
+    f = mp_filenames.get_mimic_notes_count_vectorizer_filename(
         config['mimic_basepath']
     )
 
@@ -195,13 +240,10 @@ def create_count_vectorizer(df_notes, args, config, client):
 ###
 # Create BoW with the count vectorizer
 ###
-in_note="cleaned"
-out_note = "cleaned-bow"
-
 def transform_row(row, config, icv_fit):
     
-    in_fn = get_filename(row, config, in_note)
-    out_fn = get_filename(row, config, out_note)
+    in_fn = mp_filenames.get_note_event_filename_row(row, config, NOTE_CLEANED)
+    out_fn = mp_filenames.get_note_event_filename_row(row, config, NOTE_CLEANED_BOW)
     
     if in_fn is None:
         return None
@@ -225,8 +267,7 @@ def create_bow(df_notes, args, config, client):
     num_groups = int(len(df_notes) / args.chunksize)
     g_notes = pd_utils.split_df(df_notes, num_groups)
 
-    #TODO
-    f = filenames.get_mimic_notes_count_vectorizer_filename(
+    f = mp_filenames.get_mimic_notes_count_vectorizer_filename(
         config['mimic_basepath']
     )
 
@@ -244,6 +285,50 @@ def create_bow(df_notes, args, config, client):
 ###
 # Create combined BoW
 ###
+def process_group(g, config):
+    note_files = g.apply(
+        mp_filenames.get_note_event_filename_row,
+        axis=1,
+        args=(config, NOTE_CLEANED_BOW)
+    )
+    df_cleaned_notes = [joblib.load(f) for f in note_files]
+    df_cleaned_notes = pd.DataFrame(df_cleaned_notes)
+    
+    subject_id = g.iloc[0]['SUBJECT_ID']
+    hadm_id = g.iloc[0]['HADM_ID']
+    
+    df_cleaned_notes['CHARTTIME'] = pd.to_datetime(df_cleaned_notes['CHARTTIME'])
+    
+    out_f = mp_filenames.get_note_event_filename(
+        config['mimic_basepath'],
+        subject_id,
+        hadm_id,
+        note=NOTE_CLEANED_BOW_COMBINED
+    )
+    
+    joblib.dump(df_cleaned_notes, out_f)
+
+ def process_group_chunk(chunk, config):
+    groups = chunk.groupby(['SUBJECT_ID', 'HADM_ID'], as_index=False)
+    groups.apply(process_group, config)
+    
+def combine_episode_notes(df_notes, args, config, client):
+    # group all notes by hadm id
+    g_notes = pd_utils.group_and_chunk_df(df_notes, 'HADM_ID', args.chunk_size)
+
+    _ = dask_utils.apply_groups(
+        g_notes,
+        client,
+        process_group_chunk,
+        args,
+        progress_bar=True
+    )
+
+    return None
+
+###
+# Create the final, combined data record for each episode
+###
 def update_note_type(bow_row, episode_record):
     note_type = bow_row['CATEGORY'].strip()
     note_type = NOTE_TYPE_MAPPINGS[note_type]
@@ -257,13 +342,13 @@ def add_text(episode_record, df_notes):
     
     # then add the remaining notes
     df_notes.apply(update_note_type, axis=1, args=(episode_record,))
-    
+
 def get_final_record(
         row,
         args,
-        return_record=False,
-        note="cleaned-bow.combined"):
-    """ Create the combined bag-of-words representations for each text category
+        config,
+        return_record=False):
+    """ Merge the text with the other data about the episode
     """
     # first, select the record for this episode
     df_episodes = pd.read_csv(row['ALL_EPISODES_FILE'])
@@ -288,12 +373,11 @@ def get_final_record(
         episode_record[nt] = []
         
     # extend the lists with the observed notes
-    #TODO
-    note_events = filenames.get_note_event_filename(
+    note_events = mp_filenames.get_note_event_filename(
         config['mimic_basepath'],
         subject_id,
         hadm_id,
-        note=note
+        note=NOTE_CLEANED_BOW_COMBINED
     )
     
     if os.path.exists(note_events):
@@ -307,16 +391,15 @@ def get_final_record(
         # and add them to the record
         add_text(episode_record, df_notes)
 
-    #TODO
-    f = filenames.get_benchmark_record_filename(
-        args.benchmark_base,
-        args.benchmark_problem,
-        args.benchmark_split,
+    f = mp_filenames.get_benchmark_record_filename(
+        config['benchmark_base'],
+        config['benchmark_problem'],
+        row['SPLIT'],
         subject_id,
         episode_id
     )
     
-    shell_utils = utils.ensure_path_to_file_exists(f)
+    shell_utils = shell_utils.ensure_path_to_file_exists(f)
     joblib.dump(episode_record, f)
     
     ret = None
@@ -324,23 +407,32 @@ def get_final_record(
         ret = episode_record
 
     return ret
+
+def process_chunk_final_record(df, args, config):
+    pd_utils.apply(df, get_final_record, args, config)
+
+
+def create_all_combined_records(args, config, client):
+     # first, we need information about all of the admissions in the dataset
     
+    #TODO
+    df_listfile = ndh_utils.load_benchmark_list_file(args)
 
-def combine_episode_notes(df_notes, args, config, client):
-    # group all notes by hadm id
-    g_notes = df_notes.groupby('HADM_ID')
+    num_groups = int(len(df_listfile) / args.chunksize)
+    g_listfile = pd_utils.split_df(df_listfile, num_groups)
 
-    all_episode_notes = dask_utils.apply_groups(
-        g_notes,
+     # this completes
+    _ = dask_utils.apply_groups(
+        g_listfile,
         client,
-        create_episode_notes,
+        process_chunk,
         args,
-        return_record=True,
+        config,
         progress_bar=True
     )
 
-    df_episode_notes = pd.DataFrame(all_episode_notes)
-    return df_episode_notes
+    return None
+
 
 
 ###
@@ -391,11 +483,16 @@ def main():
 
     msg = "Combining bag-of-words types per episode"
     logger.info(msg)
-    df_episode_notes = combine_episode_notes(df_notes, args, config, client)
+    combine_episode_notes(df_notes, args, config, client)
 
-    msg = "Writing bag-of-words to disk: '{}'".format(config['episode_notes'])
+    msg = "Creating the final, combined data frame"
     logger.info(msg)
-    joblib.dump(df_episode_notes, config['episode_notes'])
+    create_combined_data_frame()
+
+
+    #msg = "Writing bag-of-words to disk: '{}'".format(config['episode_notes'])
+    #logger.info(msg)
+    #joblib.dump(df_episode_notes, config['episode_notes'])
 
 if __name__ == '__main__':
         main()
