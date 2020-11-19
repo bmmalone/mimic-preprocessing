@@ -412,14 +412,9 @@ def process_chunk_final_record(df, args, config):
     pd_utils.apply(df, get_final_record, args, config)
 
 
-def create_all_combined_records(args, config, client):
-     # first, we need information about all of the admissions in the dataset
-    
-    #TODO
-    df_listfile = ndh_utils.load_benchmark_list_file(args)
+def create_all_combined_records(df_listfile, args, config, client):
 
-    num_groups = int(len(df_listfile) / args.chunksize)
-    g_listfile = pd_utils.split_df(df_listfile, num_groups)
+    g_listfile = pd_utils.split_df(df_listfile, chunk_size=args.chunksize)
 
      # this completes
     _ = dask_utils.apply_groups(
@@ -462,12 +457,21 @@ def parse_arguments() -> argparse.Namespace:
 
 def main():
     args = parse_arguments()
+    config = pyllars.utils.load_config(args.config)
+    
+    msg = "Connecting to dask client"
+    logger.info(msg)
+    dask_client, dask_cluster = dask_utils.connect(args)
 
     msg = "Loading notes... this may be slow."
     logger.info(msg)
     df_notes = physionet_utils.get_notes(
         config['mimic_basepath'], nrows=args.num_notes
     )
+
+    msg = "Loading the list file"
+    logger.info(msg)
+    df_listfile = pd.read_csv(config['episode_listfile'])
 
     msg = "Cleaning notes"
     logger.info(msg)
@@ -487,7 +491,7 @@ def main():
 
     msg = "Creating the final, combined data frame"
     logger.info(msg)
-    create_combined_data_frame()
+    create_combined_data_frame(df_listfile, args, config, client)
 
 
     #msg = "Writing bag-of-words to disk: '{}'".format(config['episode_notes'])
