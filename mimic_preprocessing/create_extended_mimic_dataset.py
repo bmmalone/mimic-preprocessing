@@ -187,6 +187,13 @@ def main():
     episode_names = (df_extended_episodes['SUBJECT_ID'].astype(str) + "_" + df_extended_episodes['EPISODE'] + "_timeseries.csv")
     df_extended_episodes['EPISODE_NAME'] = episode_names
 
+    msg = "Adding time series features: '{}'".format(config['time_series_features'])
+    logger.info(msg)
+    df_time_series = pd.read_csv(config['time_series_features'])
+    on = ['SUBJECT_ID', 'EPISODE_ID']
+    df_extended_episodes = df_extended_episodes.merge(df_time_series, on=on)
+
+
     msg = "Writing extended data frame to: '{}'".format(config['all_episodes'])
     logger.info(msg)
     shell_utils.ensure_path_to_file_exists(config['all_episodes'])
