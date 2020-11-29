@@ -4,6 +4,8 @@ import logging
 import pyllars.logging_utils as logging_utils
 logger = logging.getLogger(__name__)
 
+import argparse
+import numpy as np
 import pandas as pd
 import pyllars.dask_utils as dask_utils
 import pyllars.pandas_utils as pd_utils
@@ -16,10 +18,11 @@ import mimic_preprocessing.mp_filenames as mp_filenames
 ###
 # Load the raw time series data
 ###
-def get_stacked_df(row):
+def get_stacked_df(row, config):
     
     subject_id = row['SUBJECT_ID']
     episode_id = row['EPISODE']
+    stay = row['stay']
     
     ts_path = mp_filenames.get_benchmark_ts_raw_filename(
         benchmark_base=config['benchmark_base'],
@@ -28,28 +31,29 @@ def get_stacked_df(row):
         episode_id=row['EPISODE']
     )
     
-    stay = row['stay']
     
     df = pd.read_csv(ts_path)
     df = pd.melt(df, id_vars=['Hours'], var_name="kind", value_name="value")
     df = df.dropna(subset=['value'])
+    df = df.reset_index(drop=True)
     df['stay'] = stay
     df['SUBJECT_ID'] = subject_id
     df['EPISODE'] = episode_id
     return df
 
 
-def process_chunk(df):
-    df_chunk = pd_utils.apply(df, get_stacked_df)
+def process_chunk(df, config):
+    df_chunk = pd_utils.apply(df, get_stacked_df, config)
     df_chunk = pd.concat(df_chunk)
     return df_chunk
 
-def load_raw_ts_data(df_listfile, args, client) -> pd.DataFrame:
+def load_raw_ts_data(df_listfile, args, config, client) -> pd.DataFrame:
     chunks = pd_utils.split_df(df_listfile, chunk_size=args.chunk_size)
     stacked_dfs = dask_utils.apply_groups(
         chunks,
         client,
         process_chunk,
+        config,
         progress_bar=True
     )
 
@@ -284,7 +288,7 @@ def main():
 
     msg = "Loading the raw time series data"
     logger.info(msg)
-    df_ts_data = load_raw_ts_data(df_listfile, args, client)
+    df_ts_data = load_raw_ts_data(df_listfile, args, config, client)
 
     msg = "Cleaning the text time series features"
     logger.info(msg)
@@ -294,6 +298,10 @@ def main():
     logger.info(msg)
     df_all_ts_features = extract_all_time_series_features(df_ts_data, args,
         client, subsequence_timepoints=SUBSEQUENCE_TIMEPOINTS)
+    
+    msg = "Inspecting episodes"
+    logger.info(msg)
+    print(df_all_ts_features['SUBJECT_ID'])
 
     msg = "Writing features to disk: '{}'".format(config['time_series_features'])
     logger.info(msg)
