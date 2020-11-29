@@ -299,10 +299,6 @@ def main():
     df_all_ts_features = extract_all_time_series_features(df_ts_data, args,
         client, subsequence_timepoints=SUBSEQUENCE_TIMEPOINTS)
     
-    msg = "Inspecting episodes"
-    logger.info(msg)
-    print(df_all_ts_features['SUBJECT_ID'])
-
     msg = "Writing features to disk: '{}'".format(config['time_series_features'])
     logger.info(msg)
 
