@@ -85,10 +85,6 @@ def build_listfile(benchmark_base, benchmark_split):
         df_listfile, get_complete_episode_file, benchmark_base, benchmark_split
     )
 
-    df_listfile['TS_FILE'] = pd_utils.apply(
-        df_listfile, get_episode_ts_file, benchmark_base, benchmark_split
-    )
-
     df_listfile['ALL_EPISODES_FILE'] = pd_utils.apply(
         df_listfile, get_all_episodes_file, benchmark_base, benchmark_split
     )
