@@ -16,6 +16,7 @@ console_scripts = [
     'create-extended-listfile=mimic_preprocessing.create_extended_listfile:main',
     'create-extended-mimic-dataset=mimic_preprocessing.create_extended_mimic_dataset:main',
     'create-mimic-notes-bow=mimic_preprocessing.create_mimic_notes_bow:main',
+    'extract-mimic-time-series-features=mimic_preprocessing.extract_mimic_time_series_features:main',
 ]
 
 install_requires = _safe_read_lines("./requirements.txt")

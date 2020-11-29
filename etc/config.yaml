@@ -12,6 +12,8 @@ complete_listfile: /prj/mimic-preprocessing/analysis/listfile.csv
 all_episodes: /prj/mimic-preprocessing/analysis/all_episodes.csv
 complete_episodes: /prj/mimic-preprocessing/analysis/all-episodes.complete-dataset.jpkl
 
+time_series_features: /prj/mimic-preprocessing/analysis/time-series-features.csv
+
 # TODO: NEEDED?
 episode_notes: /prj/mimic-preprocessing/analysis/episode-notes.jpkl
 
