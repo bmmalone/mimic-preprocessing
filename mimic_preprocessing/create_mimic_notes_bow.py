@@ -34,13 +34,16 @@ logger = logging.getLogger(__name__)
 
 import argparse
 import joblib
+import os
 import pandas as pd
 
 import pyllars.collection_utils as collection_utils
+import pyllars.dask_utils as dask_utils
 import pyllars.nlp_utils as nlp_utils
 import pyllars.pandas_utils as pd_utils
 import pyllars.physionet_utils as physionet_utils
 import pyllars.shell_utils as shell_utils
+import pyllars.utils
 
 from pyllars.sklearn_transformers.incremental_count_vectorizer import IncrementalCountVectorizer
 
@@ -157,15 +160,14 @@ def clean_row(row, config):
         note=NOTE_CLEANED
     )
     
+    shell_utils.ensure_path_to_file_exists(f)
     joblib.dump(row, f)
 
 def process_chunk_clean_row(df, config):
-    df.apply(clean_row, axis=1, args=(config,))
+    pd_utils.apply(df, clean_row, config)
 
-def clean_notes(df_notes, args, config, client):
-    
-    num_groups = int(len(df_notes) / args.chunksize)
-    g_notes = pd_utils.split_df(df_notes, num_groups)
+def clean_notes(df_notes, args, config, client):    
+    g_notes = pd_utils.split_df(df_notes, chunk_size=args.chunk_size)
 
     _ = dask_utils.apply_groups(
         g_notes,
@@ -210,8 +212,7 @@ def process_chunk_count_vectorizer(df, config):
     return icv_fit
 
 def create_count_vectorizer(df_notes, args, config, client):
-    num_groups = int(len(df_notes) / args.chunksize)
-    g_notes = pd_utils.split_df(df_notes, num_groups)
+    g_notes = pd_utils.split_df(df_notes, chunk_size=args.chunk_size)
 
     # create independent vectorizers for each group
     fit_icvs = dask_utils.apply_groups(
@@ -234,7 +235,8 @@ def create_count_vectorizer(df_notes, args, config, client):
     f = mp_filenames.get_mimic_notes_count_vectorizer_filename(
         config['analysis_basepath']
     )
-
+    
+    shell_utils.ensure_path_to_file_exists(f)
     joblib.dump(icv_fit, f)
 
 ###
@@ -258,20 +260,23 @@ def transform_row(row, config, icv_fit):
     row['TEXT'] = icv_fit.transform(text)
     row['TEXT'] = row['TEXT'][0]
     
+    shell_utils.ensure_path_to_file_exists(out_fn)
     joblib.dump(row, out_fn)
 
 def process_chunk_transform(df, config, icv_fit):
-    df.apply(transform_row, axis=1, args=(config, icv_fit))
+    pd_utils.apply(df, transform_row, config, icv_fit)
 
 def create_bow(df_notes, args, config, client):
-    num_groups = int(len(df_notes) / args.chunksize)
-    g_notes = pd_utils.split_df(df_notes, num_groups)
+    g_notes = pd_utils.split_df(df_notes, chunk_size=args.chunk_size)
 
     f = mp_filenames.get_mimic_notes_count_vectorizer_filename(
         config['analysis_basepath']
     )
 
     icv_fit_load = joblib.load(f)
+    
+    # make sure to erase the function pointer for loading tokens
+    icv_fit_load.get_tokens = None
 
     _ = dask_utils.apply_groups(
         g_notes,
@@ -294,8 +299,8 @@ def process_group(g, config):
     df_cleaned_notes = [joblib.load(f) for f in note_files]
     df_cleaned_notes = pd.DataFrame(df_cleaned_notes)
     
-    subject_id = g.iloc[0]['SUBJECT_ID']
-    hadm_id = g.iloc[0]['HADM_ID']
+    subject_id = int(g.iloc[0]['SUBJECT_ID'])
+    hadm_id = int(g.iloc[0]['HADM_ID'])
     
     df_cleaned_notes['CHARTTIME'] = pd.to_datetime(df_cleaned_notes['CHARTTIME'])
     
@@ -306,9 +311,10 @@ def process_group(g, config):
         note=NOTE_CLEANED_BOW_COMBINED
     )
     
+    shell_utils.ensure_path_to_file_exists(out_f)
     joblib.dump(df_cleaned_notes, out_f)
 
- def process_group_chunk(chunk, config):
+def process_group_chunk(chunk, config):
     groups = chunk.groupby(['SUBJECT_ID', 'HADM_ID'], as_index=False)
     groups.apply(process_group, config)
     
@@ -320,7 +326,7 @@ def combine_episode_notes(df_notes, args, config, client):
         g_notes,
         client,
         process_group_chunk,
-        args,
+        config,
         progress_bar=True
     )
 
@@ -350,23 +356,13 @@ def get_final_record(
         return_record=False):
     """ Merge the text with the other data about the episode
     """
-    # first, select the record for this episode
-    df_episodes = pd.read_csv(row['ALL_EPISODES_FILE'])
-    m_episode = df_episodes['EPISODE'] == row['EPISODE']
-    episode = df_episodes[m_episode].iloc[0]
+    subject_id = int(row['SUBJECT_ID'])
+    hadm_id = int(row['HADM_ID'])
+    episode_id = row['EPISODE']
     
-    subject_id = episode['SUBJECT_ID']
-    hadm_id = episode['HADM_ID']
-    episode_id = episode['EPISODE']
-
-    # and keep just those fields we want
-    episode_record = episode[FIELDS_TO_KEEP]
+    episode_record = row.copy()
     
-    # next, pull in the time series data
-    ts = joblib.load(row['TS_FILE']).iloc[0]
-    episode_record = episode_record.append(ts)
-    
-    # and finally add the text
+    # and add the text
     
     # create empty list for each type of note
     for nt in NOTE_TYPES:
@@ -384,22 +380,23 @@ def get_final_record(
         df_notes = joblib.load(note_events)
         
         # fix the datetime data types
-        admit_time = pd.to_datetime(episode['ADMITTIME'])
+        admit_time = pd.to_datetime(episode_record['ADMITTIME'])
         df_notes['CHARTTIME'] = pd.to_datetime(df_notes['CHARTTIME'])
         df_notes['Hours'] = df_notes['CHARTTIME'] - admit_time
         
         # and add them to the record
         add_text(episode_record, df_notes)
+    else:
+        pass
 
-    f = mp_filenames.get_benchmark_record_filename(
-        config['benchmark_base'],
-        config['benchmark_problem'],
+    f = mp_filenames.get_record_filename(
+        config['analysis_basepath'],
         row['SPLIT'],
         subject_id,
         episode_id
     )
     
-    shell_utils = shell_utils.ensure_path_to_file_exists(f)
+    shell_utils.ensure_path_to_file_exists(f)
     joblib.dump(episode_record, f)
     
     ret = None
@@ -409,26 +406,30 @@ def get_final_record(
     return ret
 
 def process_chunk_final_record(df, args, config):
-    pd_utils.apply(df, get_final_record, args, config)
+    records = pd_utils.apply(
+        df, get_final_record, args, config, return_record=True
+    )
+    df_records = pd.DataFrame(records)
+    return df_records
+    
 
 
-def create_all_combined_records(df_listfile, args, config, client):
-
-    g_listfile = pd_utils.split_df(df_listfile, chunk_size=args.chunksize)
+def create_all_combined_records(df_episodes, args, config, client):
+    g_episodes = pd_utils.split_df(df_episodes, chunk_size=args.chunk_size)
 
      # this completes
-    _ = dask_utils.apply_groups(
-        g_listfile,
-        client,
-        process_chunk,
+    all_record_dfs = dask_utils.apply_groups(
+    #all_record_dfs = pd_utils.apply_groups(
+        g_episodes,
+        client,    
+        process_chunk_final_record,
         args,
         config,
         progress_bar=True
     )
-
-    return None
-
-
+    
+    df_all_records = pd.concat(all_record_dfs)
+    return df_all_records
 
 ###
 # The main program
@@ -461,17 +462,32 @@ def main():
     
     msg = "Connecting to dask client"
     logger.info(msg)
-    dask_client, dask_cluster = dask_utils.connect(args)
+    client, cluster = dask_utils.connect(args)
 
     msg = "Loading notes... this may be slow."
     logger.info(msg)
     df_notes = physionet_utils.get_notes(
         config['mimic_basepath'], nrows=args.num_notes
     )
-
-    msg = "Loading the list file"
+    
+    msg = "Removing discharge summaries"
     logger.info(msg)
-    df_listfile = pd.read_csv(config['complete_listfile'])
+    
+    # We do this because the first ~60k notes are discharge summaries. Since
+    # we always discard those, it makes testing difficult.
+    m_discharge = df_notes['CATEGORY'] == 'Discharge summary'
+    df_notes = df_notes[~m_discharge]
+
+    msg = "Loading the episode information"
+    logger.info(msg)
+    df_episodes = pd.read_csv(config['all_episodes'])
+    
+    msg = ("Filtering the list file to only include subjects for which we have "
+        "some notes")
+    logger.info(msg)
+    subject_ids = set(df_notes['SUBJECT_ID'])
+    m_subject_ids = df_episodes['SUBJECT_ID'].isin(subject_ids)
+    df_episodes = df_episodes[m_subject_ids]
 
     msg = "Cleaning notes"
     logger.info(msg)
@@ -491,12 +507,11 @@ def main():
 
     msg = "Creating the final, combined data frame"
     logger.info(msg)
-    create_combined_data_frame(df_listfile, args, config, client)
+    df_all_records = create_all_combined_records(df_episodes, args, config, client)
 
-
-    #msg = "Writing bag-of-words to disk: '{}'".format(config['episode_notes'])
-    #logger.info(msg)
-    #joblib.dump(df_episode_notes, config['episode_notes'])
+    msg = "Writing complete dataset to disk: '{}'".format(config['complete_episodes'])
+    logger.info(msg)
+    joblib.dump(df_all_records, config['complete_episodes'])
 
 if __name__ == '__main__':
         main()
