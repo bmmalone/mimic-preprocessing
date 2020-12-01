@@ -241,10 +241,10 @@ def main():
     df_extended_episodes = df_extended_episodes.merge(df_time_series, on=on)
 
 
-    msg = "Writing extended data frame to: '{}'".format(config['all_episodes'])
+    msg = "Writing extended data frame to: '{}'".format(config['extended_episodes'])
     logger.info(msg)
-    shell_utils.ensure_path_to_file_exists(config['all_episodes'])
-    df_extended_episodes.to_csv(config['all_episodes'], index=False)
+    shell_utils.ensure_path_to_file_exists(config['extended_episodes'])
+    df_extended_episodes.to_csv(config['extended_episodes'], index=False)
 
 if __name__ == '__main__':
     main()

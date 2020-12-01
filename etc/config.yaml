@@ -9,17 +9,11 @@ all_stays: /biodb/physionet/mimic-iii/benchmarks/all_stays.csv
 analysis_basepath: /prj/mimic-preprocessing/analysis
 
 complete_listfile: /prj/mimic-preprocessing/analysis/listfile.csv
-all_episodes: /prj/mimic-preprocessing/analysis/all_episodes.csv
+time_series_features: /prj/mimic-preprocessing/analysis/time-series-features.csv
+extended_episodes: /prj/mimic-preprocessing/analysis/extended-episodes.csv
 complete_episodes: /prj/mimic-preprocessing/analysis/all-episodes.complete-dataset.jpkl
 
-time_series_features: /prj/mimic-preprocessing/analysis/time-series-features.csv
-
-# TODO: NEEDED?
-episode_notes: /prj/mimic-preprocessing/analysis/episode-notes.jpkl
 
 # document frequencies for stop words. See CountVectorizer for details.
 min_df: 0.001
 max_df: 0.9
-
-# do not change these
-benchmark_problem: in-hospital-mortality

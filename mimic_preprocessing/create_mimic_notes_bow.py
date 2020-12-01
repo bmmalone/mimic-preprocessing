@@ -520,7 +520,7 @@ def main():
 
     msg = "Loading the episode information"
     logger.info(msg)
-    df_episodes = pd.read_csv(config['all_episodes'])
+    df_episodes = pd.read_csv(config['extended_episodes'])
     
     msg = ("Filtering the list file to only include subjects for which we have "
         "some notes")
