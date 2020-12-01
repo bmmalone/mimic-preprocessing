@@ -62,39 +62,10 @@ console_scripts = [
 
 install_requires = _safe_read_lines("./requirements.txt")
 
-tests_require = [
-    'pytest',
-    'coverage',
-    'pytest-cov',
-    'coveralls',
-    'pytest-runner',
-]
-
-gpu_requires = []
-
-docs_require = [
-    'sphinx',
-    'sphinx_rtd_theme'
-]
-
-all_requires = (
-    tests_require +
-    gpu_requires +
-    docs_require
-)
-
-extras = {
-    'test': tests_require,
-    'gpu': gpu_requires,
-    'docs': docs_require,
-    'all': all_requires
-}
-
 classifiers = [
     'Development Status :: 3 - Alpha',
     'Intended Audience :: Developers',
     'Intended Audience :: Science/Research',
-    'License :: OSI Approved :: BSD License',
     'Natural Language :: English',
     'Programming Language :: Python :: 3 :: Only',
 ]
@@ -140,7 +111,7 @@ setup(
     url="https://github.com/bmmalone/mimic-preprocessing",
     author="NLE",
     author_email="brandon.malone@neclab.eu",
-    license='BSD 3-clause "New" or "Revised License"',
+    license='NLE ACADEMIC OR NON-PROFIT ORGANIZATION NONCOMMERCIAL RESEARCH USE ONLY',
     packages=find_packages(),
     install_requires=install_requires,
     cmdclass={'install': my_install,  # override install
