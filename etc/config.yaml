@@ -1,0 +1,19 @@
+# path the MIMIC-III csv data tables
+mimic_basepath: /biodb/physionet/mimic-iii/
+
+# created by code from Harutyunyan et al.
+benchmark_base: /biodb/physionet/mimic-iii/benchmarks
+all_stays: /biodb/physionet/mimic-iii/benchmarks/all_stays.csv
+
+# files created by pipeline
+analysis_basepath: /prj/mimic-preprocessing/analysis
+
+complete_listfile: /prj/mimic-preprocessing/analysis/listfile.csv
+time_series_features: /prj/mimic-preprocessing/analysis/time-series-features.csv
+extended_episodes: /prj/mimic-preprocessing/analysis/extended-episodes.csv
+complete_episodes: /prj/mimic-preprocessing/analysis/all-episodes.complete-dataset.jpkl
+
+
+# document frequencies for stop words. See CountVectorizer for details.
+min_df: 0.001
+max_df: 0.9
